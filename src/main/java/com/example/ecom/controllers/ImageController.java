@@ -1,35 +1,31 @@
 package com.example.ecom.controllers;
 
-import com.azure.storage.blob.*;
+import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.specialized.BlockBlobClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.ByteArrayInputStream;
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/images")
+@RequestMapping("/images")
 public class ImageController {
 
-    @Value("${app.storage.connectionString}")
-    private String connectionString;
+  private final BlobContainerClient container;
 
-    @Value("${app.storage.container}")
-    private String containerName;
+  public ImageController(BlobContainerClient container) {
+    this.container = container;
+  }
 
-    @PutMapping(path = "/upload/{name}", consumes = MediaType.ALL_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Object> upload(@PathVariable String name, @RequestBody byte[] body){
-        BlobServiceClient svc = new BlobServiceClientBuilder().connectionString(connectionString).buildClient();
-        BlobContainerClient container = svc.getBlobContainerClient(containerName);
-        if (!container.exists()) container.create();
-        BlockBlobClient blob = container.getBlobClient(name).getBlockBlobClient();
-        blob.upload(new ByteArrayInputStream(body), body.length, true);
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("name", name);
-        resp.put("url", blob.getBlobUrl());
-        return resp;
-    }
+  @PostMapping("/upload")
+  public ResponseEntity<String> upload(@RequestParam("file") MultipartFile file) throws Exception {
+    String blobName = file.getOriginalFilename();
+    BlockBlobClient blob = container.getBlobClient(blobName).getBlockBlobClient();
+    blob.upload(file.getInputStream(), file.getSize(), true);
+    return ResponseEntity.ok("Uploaded " + blobName);
+  }
+
+  @GetMapping("/{name}")
+  public ResponseEntity<String> url(@PathVariable String name) {
+    return ResponseEntity.ok(container.getBlobClient(name).getBlobUrl());
+  }
 }
