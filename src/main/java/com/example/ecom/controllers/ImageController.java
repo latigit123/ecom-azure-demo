@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/images")
+@RequestMapping("/api/images")
 public class ImageController {
 
   private final BlobContainerClient container;
@@ -16,16 +16,20 @@ public class ImageController {
     this.container = container;
   }
 
-  @PostMapping("/upload")
-  public ResponseEntity<String> upload(@RequestParam("file") MultipartFile file) throws Exception {
-    String blobName = file.getOriginalFilename();
-    BlockBlobClient blob = container.getBlobClient(blobName).getBlockBlobClient();
+  // Match the UI: POST /api/images/upload/{filename}
+  @PostMapping("/upload/{filename}")
+  public ResponseEntity<String> uploadWithPath(
+      @PathVariable String filename,
+      @RequestParam("file") MultipartFile file) throws Exception {
+
+    BlockBlobClient blob = container.getBlobClient(filename).getBlockBlobClient();
     blob.upload(file.getInputStream(), file.getSize(), true);
-    return ResponseEntity.ok("Uploaded " + blobName);
+    return ResponseEntity.ok("/api/images/" + filename);
   }
 
-  @GetMapping("/{name}")
-  public ResponseEntity<String> url(@PathVariable String name) {
-    return ResponseEntity.ok(container.getBlobClient(name).getBlobUrl());
+  // Simple fetch: GET /api/images/{filename} -> returns the public URL
+  @GetMapping("/{filename}")
+  public ResponseEntity<String> getUrl(@PathVariable String filename) {
+    return ResponseEntity.ok(container.getBlobClient(filename).getBlobUrl());
   }
 }
